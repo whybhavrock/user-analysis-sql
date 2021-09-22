@@ -1,0 +1,35 @@
+---to send the email we will need user_id, users email address , item they recently viewed with thier name and category 
+SELECT
+  users.id                AS user_id,
+  users.email_address,
+  items.id                AS item_id,
+  items.name              AS item_name,
+  items.category          AS item_category
+FROM
+  (
+    SELECT
+      user_id,
+      item_id,
+      event_time,
+      row_number() over (
+        PARTITION by user_id
+        ORDER BY
+          event_time DESC
+      ) AS view_num ----- using the window function we get the item which was recently viewed by the users
+    FROM
+      dsv1069.view_item_events
+  ) recently_viewed_items 
+  
+  --- joining the users and items table with recently_viewed_items table because we only want to send email to users who saw the item
+  JOIN dsv1069.users 
+       ON 
+           users.id = recently_viewed_items.user_id
+  JOIN dsv1069.items 
+       ON 
+          items.id = recently_viewed_items.item_id
+          
+----- using WHERE clause to filter the deleted user because we don't want to send the email to them
+WHERE
+      view_num = 1
+  AND 
+      users.deleted_at IS NOT NULL
